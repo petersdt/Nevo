@@ -57,7 +57,15 @@ pub trait CrowdfundingTrait {
         new_state: PoolState,
     ) -> Result<(), CrowdfundingError>;
 
-    fn initialize(env: Env, admin: Address) -> Result<(), CrowdfundingError>;
+    fn set_crowdfunding_token(env: Env, token: Address) -> Result<(), CrowdfundingError>;
+
+    fn get_crowdfunding_token(env: Env) -> Result<Address, CrowdfundingError>;
+
+    fn set_creation_fee(env: Env, fee: i128) -> Result<(), CrowdfundingError>;
+
+    fn get_creation_fee(env: Env) -> Result<i128, CrowdfundingError>;
+
+    fn initialize(env: Env, admin: Address, token: Address, creation_fee: i128) -> Result<(), CrowdfundingError>;
 
     fn pause(env: Env) -> Result<(), CrowdfundingError>;
 

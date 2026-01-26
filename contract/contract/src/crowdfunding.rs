@@ -43,6 +43,28 @@ impl CrowdfundingTrait for CrowdfundingContract {
             return Err(CrowdfundingError::InvalidDeadline);
         }
 
+        let token_key = StorageKey::CrowdfundingToken;
+        if !env.storage().instance().has(&token_key) {
+            return Err(CrowdfundingError::NotInitialized);
+        }
+        let token_address: Address = env.storage().instance().get(&token_key).unwrap();
+
+        let fee_key = StorageKey::CreationFee;
+        let creation_fee: i128 = env.storage().instance().get(&fee_key).unwrap_or(0);
+
+        if creation_fee > 0 {
+            use soroban_sdk::token;
+            let token_client = token::Client::new(&env, &token_address);
+            
+            let balance = token_client.balance(&creator);
+            if balance < creation_fee {
+                return Err(CrowdfundingError::InsufficientBalance);
+            }
+
+            token_client.transfer(&creator, env.current_contract_address(), &creation_fee);
+            events::creation_fee_paid(&env, creator.clone(), creation_fee);
+        }
+
         let campaign_key = (id.clone(),);
         if env.storage().instance().has(&campaign_key) {
             return Err(CrowdfundingError::CampaignAlreadyExists);
@@ -54,6 +76,7 @@ impl CrowdfundingTrait for CrowdfundingContract {
             creator: creator.clone(),
             goal,
             deadline,
+            token_address: token_address.clone(),
         };
 
         env.storage().instance().set(&campaign_key, &campaign);
@@ -80,6 +103,36 @@ impl CrowdfundingTrait for CrowdfundingContract {
         Ok(())
     }
 
+    fn set_crowdfunding_token(env: Env, token: Address) -> Result<(), CrowdfundingError> {
+        let admin: Address = env.storage().instance().get(&StorageKey::Admin).ok_or(CrowdfundingError::NotInitialized)?;
+        admin.require_auth();
+
+        env.storage().instance().set(&StorageKey::CrowdfundingToken, &token);
+        events::crowdfunding_token_set(&env, admin, token);
+        Ok(())
+    }
+
+    fn get_crowdfunding_token(env: Env) -> Result<Address, CrowdfundingError> {
+         env.storage().instance().get(&StorageKey::CrowdfundingToken).ok_or(CrowdfundingError::NotInitialized)
+    }
+
+    fn set_creation_fee(env: Env, fee: i128) -> Result<(), CrowdfundingError> {
+        let admin: Address = env.storage().instance().get(&StorageKey::Admin).ok_or(CrowdfundingError::NotInitialized)?;
+        admin.require_auth();
+
+        if fee < 0 {
+             return Err(CrowdfundingError::InvalidFee);
+        }
+
+        env.storage().instance().set(&StorageKey::CreationFee, &fee);
+        events::creation_fee_set(&env, admin, fee);
+        Ok(())
+    }
+
+    fn get_creation_fee(env: Env) -> Result<i128, CrowdfundingError> {
+        Ok(env.storage().instance().get(&StorageKey::CreationFee).unwrap_or(0))
+    }
+
     fn get_all_campaigns(env: Env) -> Vec<BytesN<32>> {
         env.storage()
             .instance()
@@ -98,7 +151,7 @@ impl CrowdfundingTrait for CrowdfundingContract {
             .storage()
             .instance()
             .get(&metrics_key)
-            .unwrap_or(CampaignMetrics::new());
+            .unwrap_or_default();
         Ok(metrics.contributor_count)
     }
 
@@ -113,7 +166,7 @@ impl CrowdfundingTrait for CrowdfundingContract {
             .storage()
             .instance()
             .get(&metrics_key)
-            .unwrap_or(CampaignMetrics::new());
+            .unwrap_or_default();
         Ok(metrics.total_raised)
     }
 
@@ -154,7 +207,7 @@ impl CrowdfundingTrait for CrowdfundingContract {
         // Transfer tokens
         use soroban_sdk::token;
         let token_client = token::Client::new(&env, &asset);
-        token_client.transfer(&donor, &env.current_contract_address(), &amount);
+        token_client.transfer(&donor, env.current_contract_address(), &amount);
 
         // Update metrics
         let metrics_key = StorageKey::CampaignMetrics(campaign_id.clone());
@@ -162,7 +215,7 @@ impl CrowdfundingTrait for CrowdfundingContract {
             .storage()
             .instance()
             .get(&metrics_key)
-            .unwrap_or(CampaignMetrics::new());
+            .unwrap_or_default();
 
         metrics.total_raised += amount;
         metrics.last_donation_at = env.ledger().timestamp();
@@ -370,11 +423,18 @@ impl CrowdfundingTrait for CrowdfundingContract {
         Ok(())
     }
 
-    fn initialize(env: Env, admin: Address) -> Result<(), CrowdfundingError> {
+    fn initialize(env: Env, admin: Address, token: Address, creation_fee: i128) -> Result<(), CrowdfundingError> {
         if env.storage().instance().has(&StorageKey::Admin) {
             return Err(CrowdfundingError::ContractAlreadyInitialized);
         }
+        
+        if creation_fee < 0 {
+            return Err(CrowdfundingError::InvalidFee);
+        }
+
         env.storage().instance().set(&StorageKey::Admin, &admin);
+        env.storage().instance().set(&StorageKey::CrowdfundingToken, &token);
+        env.storage().instance().set(&StorageKey::CreationFee, &creation_fee);
         env.storage().instance().set(&StorageKey::IsPaused, &false);
         Ok(())
     }
@@ -466,7 +526,7 @@ impl CrowdfundingTrait for CrowdfundingContract {
             .storage()
             .instance()
             .get(&metrics_key)
-            .unwrap_or(PoolMetrics::new());
+            .unwrap_or_default();
 
         metrics.total_raised += amount;
         metrics.contributor_count += 1;

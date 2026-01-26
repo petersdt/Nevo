@@ -37,4 +37,7 @@ pub enum CrowdfundingError {
     EmergencyWithdrawalAlreadyRequested = 31,
     EmergencyWithdrawalNotRequested = 32,
     EmergencyWithdrawalPeriodNotPassed = 33,
+    InvalidToken = 34,
+    InvalidFee = 35,
+    InsufficientBalance = 36,
 }
