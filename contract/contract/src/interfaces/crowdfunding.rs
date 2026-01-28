@@ -80,7 +80,12 @@ pub trait CrowdfundingTrait {
 
     fn get_creation_fee(env: Env) -> Result<i128, CrowdfundingError>;
 
-    fn initialize(env: Env, admin: Address, token: Address, creation_fee: i128) -> Result<(), CrowdfundingError>;
+    fn initialize(
+        env: Env,
+        admin: Address,
+        token: Address,
+        creation_fee: i128,
+    ) -> Result<(), CrowdfundingError>;
 
     fn pause(env: Env) -> Result<(), CrowdfundingError>;
 

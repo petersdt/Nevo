@@ -86,7 +86,7 @@ fn test_create_pool_invalid_description_length() {
     // BUT checking the code I wrote: I updated `PoolConfig::validate` with `assert!`.
     // So distinct test cases for failures need `#[should_panic]`.
 
-    let result = client.try_create_pool(&creator, &config);
+    let _result = client.try_create_pool(&creator, &config);
     // Since it panics, `try_create_pool` might catch it if it's a contract error, but `assert!` panics the wasm.
     // In test env, it should panic the test.
     // Let's assume it panics.
@@ -128,8 +128,13 @@ fn test_create_pool_validation_logic() {
     let client = CrowdfundingContractClient::new(&env, &contract_id);
     let creator = Address::generate(&env);
 
+    let admin = Address::generate(&env);
+    let token_admin = Address::generate(&env);
+    let token_contract = env.register_stellar_asset_contract_v2(token_admin.clone());
+    let token_address = token_contract.address();
+
     // Test contract paused
-    client.initialize(&creator); // reused creator as admin
+    client.initialize(&admin, &token_address, &0); // initialize with 0 fee
     client.pause();
 
     let config = PoolConfig {

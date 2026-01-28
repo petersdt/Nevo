@@ -23,15 +23,15 @@ fn setup_test(env: &Env) -> (CrowdfundingContractClient, Address, Address) {
     env.mock_all_auths();
     let contract_id = env.register(CrowdfundingContract, ());
     let client = CrowdfundingContractClient::new(env, &contract_id);
-    
+
     let admin = Address::generate(env);
     let token_admin = Address::generate(env);
     let token_contract = env.register_stellar_asset_contract_v2(token_admin.clone());
     let token_address = token_contract.address();
-    
+
     // Initialize with 0 fee by default
     client.initialize(&admin, &token_address, &0);
-    
+
     (client, admin, token_address)
 }
 
@@ -160,27 +160,23 @@ fn test_create_campaign_with_negative_goal() {
 #[test]
 fn test_create_campaign_with_past_deadline() {
     let env = Env::default();
-    let (client, _, _) = setup_test(&env);
+    let (client, _, token_address) = setup_test(&env);
     env.ledger().with_mut(|li| li.timestamp = 1000);
 
-<<<<<<< HEAD
-=======
-    let contract_id = env.register(CrowdfundingContract, ());
-    let client = CrowdfundingContractClient::new(&env, &contract_id);
-
-    let admin = Address::generate(&env);
-    let token_id = env
-        .register_stellar_asset_contract_v2(admin.clone())
-        .address();
->>>>>>> main
     let creator = Address::generate(&env);
     let campaign_id = create_test_campaign_id(&env, 6);
     let title = String::from_str(&env, "Past Deadline Campaign");
     let goal = 100_000i128;
     let deadline = 500;
 
-    let result =
-        client.try_create_campaign(&campaign_id, &title, &creator, &goal, &deadline, &token_id);
+    let result = client.try_create_campaign(
+        &campaign_id,
+        &title,
+        &creator,
+        &goal,
+        &deadline,
+        &token_address,
+    );
 
     assert_eq!(result, Err(Ok(CrowdfundingError::InvalidDeadline)));
 }
@@ -212,32 +208,31 @@ fn test_create_duplicate_campaign() {
 fn test_create_campaign_uninitialized() {
     let env = Env::default();
     env.mock_all_auths();
-    
+
     let contract_id = env.register(CrowdfundingContract, ());
     let client = CrowdfundingContractClient::new(&env, &contract_id);
 
-<<<<<<< HEAD
     let creator = Address::generate(&env);
     let campaign_id = create_test_campaign_id(&env, 99);
     let title = String::from_str(&env, "Uninitialized");
     let goal = 1000i128;
     let deadline = env.ledger().timestamp() + 86400;
 
-    let result = client.try_create_campaign(&campaign_id, &title, &creator, &goal, &deadline);
+    let admin = Address::generate(&env);
+    let token_id = env
+        .register_stellar_asset_contract_v2(admin.clone())
+        .address();
+
+    let result =
+        client.try_create_campaign(&campaign_id, &title, &creator, &goal, &deadline, &token_id);
     assert_eq!(result, Err(Ok(CrowdfundingError::NotInitialized)));
 }
 
 #[test]
 fn test_multiple_campaigns() {
     let env = Env::default();
-    let (client, _, _) = setup_test(&env);
+    let (client, _, token_address) = setup_test(&env);
 
-=======
-    let admin = Address::generate(&env);
-    let token_id = env
-        .register_stellar_asset_contract_v2(admin.clone())
-        .address();
->>>>>>> main
     let creator1 = Address::generate(&env);
     let creator2 = Address::generate(&env);
 
@@ -259,7 +254,7 @@ fn test_multiple_campaigns() {
         &creator1,
         &goal1,
         &deadline1,
-        &token_id,
+        &token_address,
     );
     client.create_campaign(
         &campaign_id_2,
@@ -267,7 +262,7 @@ fn test_multiple_campaigns() {
         &creator2,
         &goal2,
         &deadline2,
-        &token_id,
+        &token_address,
     );
 
     let campaign1 = client.get_campaign(&campaign_id_1);
@@ -600,7 +595,7 @@ fn test_pause_unpause_full_cycle() {
 
     let contract_id = env.register(CrowdfundingContract, ());
     let client = CrowdfundingContractClient::new(&env, &contract_id);
-    
+
     let admin = Address::generate(&env);
     let token_admin = Address::generate(&env);
     let token_contract = env.register_stellar_asset_contract_v2(token_admin.clone());
@@ -629,7 +624,6 @@ fn test_admin_auth_for_pause() {
     let token_contract = env.register_stellar_asset_contract_v2(token_admin.clone());
     client.initialize(&admin, &token_contract.address(), &0);
 
-
     // Admin can pause
     client
         .mock_auths(&[soroban_sdk::testutils::MockAuth {
@@ -654,11 +648,10 @@ fn test_non_admin_cannot_pause() {
 
     let admin = Address::generate(&env);
     let non_admin = Address::generate(&env);
-    
+
     let token_admin = Address::generate(&env);
     let token_contract = env.register_stellar_asset_contract_v2(token_admin.clone());
     client.initialize(&admin, &token_contract.address(), &0);
-
 
     // Non-admin trying to pause - should fail (require_auth will fail)
     client
@@ -739,7 +732,6 @@ fn test_update_pool_state_blocked_when_paused() {
     let token_contract = env.register_stellar_asset_contract_v2(token_admin.clone());
     client.initialize(&admin, &token_contract.address(), &0);
 
-
     // Create a pool first
     let creator = Address::generate(&env);
     let name = String::from_str(&env, "Test Pool");
@@ -786,7 +778,6 @@ fn test_getters_work_when_paused() {
     let token_contract = env.register_stellar_asset_contract_v2(token_admin.clone());
     client.initialize(&admin, &token_contract.address(), &0);
 
-
     // Create a campaign before pausing
     let admin = Address::generate(&env);
     let token_id = env
@@ -824,7 +815,6 @@ fn test_cannot_pause_already_paused() {
     let token_contract = env.register_stellar_asset_contract_v2(token_admin.clone());
     client.initialize(&admin, &token_contract.address(), &0);
 
-
     client.pause();
     let result = client.try_pause();
     assert_eq!(result, Err(Ok(CrowdfundingError::ContractAlreadyPaused)));
@@ -843,7 +833,6 @@ fn test_cannot_unpause_already_unpaused() {
     let token_contract = env.register_stellar_asset_contract_v2(token_admin.clone());
     client.initialize(&admin, &token_contract.address(), &0);
 
-
     let result = client.try_unpause();
     assert_eq!(result, Err(Ok(CrowdfundingError::ContractAlreadyUnpaused)));
 }
@@ -860,7 +849,6 @@ fn test_operations_enabled_after_unpause() {
     let token_admin = Address::generate(&env);
     let token_contract = env.register_stellar_asset_contract_v2(token_admin.clone());
     client.initialize(&admin, &token_contract.address(), &0);
-
 
     client.pause();
     client.unpause();
@@ -985,11 +973,9 @@ fn test_get_all_campaigns() {
 #[test]
 fn test_donate_and_donor_count() {
     let env = Env::default();
-    let (client, _, _) = setup_test(&env);
+    let (client, _, token_address) = setup_test(&env);
 
-    let admin = Address::generate(&env);
-    let token_id = env.register_stellar_asset_contract_v2(admin.clone());
-    let token_admin_client = soroban_sdk::token::StellarAssetClient::new(&env, &token_id.address());
+    let token_admin_client = soroban_sdk::token::StellarAssetClient::new(&env, &token_address);
 
     let creator = Address::generate(&env);
     let campaign_id = create_test_campaign_id(&env, 103);
@@ -999,7 +985,7 @@ fn test_donate_and_donor_count() {
         &creator,
         &10000i128,
         &(env.ledger().timestamp() + 1000),
-        &token_id.address(),
+        &token_address,
     );
 
     // 1. Returns 0 for campaign with no donors
@@ -1011,20 +997,20 @@ fn test_donate_and_donor_count() {
     token_admin_client.mint(&donor1, &5000i128);
 
     // 2. Donate and check count
-    client.donate(&campaign_id, &donor1, &token_id.address(), &100i128);
+    client.donate(&campaign_id, &donor1, &token_address, &100i128);
 
     assert_eq!(client.get_donor_count(&campaign_id), 1);
     assert_eq!(client.get_campaign_balance(&campaign_id), 100);
 
     // 3. Same donor donates again -> count should still be 1
-    client.donate(&campaign_id, &donor1, &token_id.address(), &50i128);
+    client.donate(&campaign_id, &donor1, &token_address, &50i128);
     assert_eq!(client.get_donor_count(&campaign_id), 1);
     assert_eq!(client.get_campaign_balance(&campaign_id), 150);
 
     // 4. Different donor donates -> count should be 2
     let donor2 = Address::generate(&env);
     token_admin_client.mint(&donor2, &5000i128);
-    client.donate(&campaign_id, &donor2, &token_id.address(), &200i128);
+    client.donate(&campaign_id, &donor2, &token_address, &200i128);
 
     assert_eq!(client.get_donor_count(&campaign_id), 2);
     assert_eq!(client.get_campaign_balance(&campaign_id), 350);
@@ -1058,11 +1044,9 @@ fn test_get_campaign_goal() {
 #[test]
 fn test_is_campaign_completed() {
     let env = Env::default();
-    let (client, _, _) = setup_test(&env);
+    let (client, _, token_address) = setup_test(&env);
 
-    let admin = Address::generate(&env);
-    let token_id = env.register_stellar_asset_contract_v2(admin.clone());
-    let token_admin_client = soroban_sdk::token::StellarAssetClient::new(&env, &token_id.address());
+    let token_admin_client = soroban_sdk::token::StellarAssetClient::new(&env, &token_address);
 
     let creator = Address::generate(&env);
     let id = create_test_campaign_id(&env, 105);
@@ -1074,7 +1058,7 @@ fn test_is_campaign_completed() {
         &creator,
         &goal,
         &(env.ledger().timestamp() + 1000),
-        &token_id.address(),
+        &token_address,
     );
 
     // 1. Returns false for new campaign
@@ -1084,11 +1068,11 @@ fn test_is_campaign_completed() {
     token_admin_client.mint(&donor, &5000i128);
 
     // 2. Returns false when under goal
-    client.donate(&id, &donor, &token_id.address(), &900i128);
+    client.donate(&id, &donor, &token_address, &900i128);
     assert!(!client.is_campaign_completed(&id));
 
     // 3. Returns true when goal is reached
-    client.donate(&id, &donor, &token_id.address(), &100i128); // Total 1000
+    client.donate(&id, &donor, &token_address, &100i128); // Total 1000
     assert!(client.is_campaign_completed(&id));
 
     // 4. Campaign remains completed after goal is reached
@@ -1098,12 +1082,10 @@ fn test_is_campaign_completed() {
 #[test]
 fn test_donate_deadline_passed() {
     let env = Env::default();
-    let (client, _, _) = setup_test(&env);
+    let (client, _, token_address) = setup_test(&env);
     env.ledger().with_mut(|li| li.timestamp = 1000);
 
-    let admin = Address::generate(&env);
-    let token_id = env.register_stellar_asset_contract_v2(admin.clone());
-    let token_admin_client = soroban_sdk::token::StellarAssetClient::new(&env, &token_id.address());
+    let token_admin_client = soroban_sdk::token::StellarAssetClient::new(&env, &token_address);
 
     let creator = Address::generate(&env);
     let id = create_test_campaign_id(&env, 106);
@@ -1115,20 +1097,20 @@ fn test_donate_deadline_passed() {
         &creator,
         &1000i128,
         &deadline,
-        &token_id.address(),
+        &token_address,
     );
 
     let donor = Address::generate(&env);
     token_admin_client.mint(&donor, &5000i128);
 
     // Donate before deadline - should work
-    client.donate(&id, &donor, &token_id.address(), &100i128);
+    client.donate(&id, &donor, &token_address, &100i128);
 
     // Advance time past deadline
     env.ledger().with_mut(|li| li.timestamp = 2001);
 
     // Donate after deadline - should fail
-    let result = client.try_donate(&id, &donor, &token_id.address(), &100i128);
+    let result = client.try_donate(&id, &donor, &token_address, &100i128);
     assert_eq!(result, Err(Ok(CrowdfundingError::CampaignExpired)));
 }
 
@@ -1149,6 +1131,9 @@ fn test_successful_donation() {
 
     let contract_id = env.register(CrowdfundingContract, ());
     let client = CrowdfundingContractClient::new(&env, &contract_id);
+
+    // Initialize contract
+    client.initialize(&admin, &token_id, &0);
 
     // Create campaign
     let creator = Address::generate(&env);
@@ -1195,6 +1180,9 @@ fn test_multiple_donations_same_campaign() {
 
     let contract_id = env.register(CrowdfundingContract, ());
     let client = CrowdfundingContractClient::new(&env, &contract_id);
+
+    // Initialize contract
+    client.initialize(&admin, &token_id, &0);
 
     // Create campaign
     let creator = Address::generate(&env);
@@ -1243,6 +1231,9 @@ fn test_donation_updates_total_raised() {
     let contract_id = env.register(CrowdfundingContract, ());
     let client = CrowdfundingContractClient::new(&env, &contract_id);
 
+    // Initialize contract
+    client.initialize(&admin, &token_id, &0);
+
     // Create campaign
     let creator = Address::generate(&env);
     let campaign_id = create_test_campaign_id(&env, 202);
@@ -1285,6 +1276,9 @@ fn test_contribution_tracked_per_user() {
 
     let contract_id = env.register(CrowdfundingContract, ());
     let client = CrowdfundingContractClient::new(&env, &contract_id);
+
+    // Initialize contract
+    client.initialize(&admin, &token_id, &0);
 
     // Create campaign
     let creator = Address::generate(&env);
@@ -1335,6 +1329,9 @@ fn test_donate_to_nonexistent_campaign() {
     let contract_id = env.register(CrowdfundingContract, ());
     let client = CrowdfundingContractClient::new(&env, &contract_id);
 
+    // Initialize contract
+    client.initialize(&admin, &token_id, &0);
+
     let donor = Address::generate(&env);
     token_admin_client.mint(&donor, &1_000i128);
 
@@ -1359,6 +1356,9 @@ fn test_donate_after_deadline() {
 
     let contract_id = env.register(CrowdfundingContract, ());
     let client = CrowdfundingContractClient::new(&env, &contract_id);
+
+    // Initialize contract
+    client.initialize(&admin, &token_id, &0);
 
     // Create campaign with deadline
     let creator = Address::generate(&env);
@@ -1393,6 +1393,9 @@ fn test_donate_zero_amount() {
 
     let contract_id = env.register(CrowdfundingContract, ());
     let client = CrowdfundingContractClient::new(&env, &contract_id);
+
+    // Initialize contract
+    client.initialize(&admin, &token_id, &0);
 
     // Create campaign
     let creator = Address::generate(&env);
@@ -1429,6 +1432,9 @@ fn test_donate_insufficient_balance() {
     let contract_id = env.register(CrowdfundingContract, ());
     let client = CrowdfundingContractClient::new(&env, &contract_id);
 
+    // Initialize contract
+    client.initialize(&admin, &token_id, &0);
+
     // Create campaign
     let creator = Address::generate(&env);
     let campaign_id = create_test_campaign_id(&env, 206);
@@ -1463,6 +1469,9 @@ fn test_donate_campaign_already_funded() {
 
     let contract_id = env.register(CrowdfundingContract, ());
     let client = CrowdfundingContractClient::new(&env, &contract_id);
+
+    // Initialize contract
+    client.initialize(&admin, &token_id, &0);
 
     // Create campaign with goal of 1000
     let creator = Address::generate(&env);
@@ -1507,6 +1516,9 @@ fn test_donate_wrong_token() {
     let contract_id = env.register(CrowdfundingContract, ());
     let client = CrowdfundingContractClient::new(&env, &contract_id);
 
+    // Initialize contract with token1
+    client.initialize(&admin1, &token1_id, &0);
+
     // Create campaign with token1
     let creator = Address::generate(&env);
     let campaign_id = create_test_campaign_id(&env, 208);
@@ -1528,34 +1540,34 @@ fn test_donate_wrong_token() {
 fn test_configuration_functions() {
     let env = Env::default();
     env.mock_all_auths();
-    
+
     let contract_id = env.register(CrowdfundingContract, ());
     let client = CrowdfundingContractClient::new(&env, &contract_id);
-    
+
     let admin = Address::generate(&env);
     let token_admin = Address::generate(&env);
     let token_contract = env.register_stellar_asset_contract_v2(token_admin.clone());
     let token = token_contract.address();
     let fee = 100i128;
-    
+
     // Initialize
     client.initialize(&admin, &token, &fee);
-    
+
     // Get values
     assert_eq!(client.get_crowdfunding_token(), token);
     assert_eq!(client.get_creation_fee(), fee);
-    
+
     // Update token
     let new_token_contract = env.register_stellar_asset_contract_v2(token_admin.clone());
     let new_token = new_token_contract.address();
     client.set_crowdfunding_token(&new_token);
     assert_eq!(client.get_crowdfunding_token(), new_token);
-    
+
     // Update fee
     let new_fee = 200i128;
     client.set_creation_fee(&new_fee);
     assert_eq!(client.get_creation_fee(), new_fee);
-    
+
     // Test auth
     let non_admin = Address::generate(&env);
     client.mock_auths(&[MockAuth {
@@ -1567,41 +1579,40 @@ fn test_configuration_functions() {
             sub_invokes: &[],
         },
     }]);
-    
 }
 
 #[test]
 fn test_create_campaign_with_fee() {
     let env = Env::default();
     env.mock_all_auths();
-    
+
     let contract_id = env.register(CrowdfundingContract, ());
     let client = CrowdfundingContractClient::new(&env, &contract_id);
-    
+
     let admin = Address::generate(&env);
     let token_admin = Address::generate(&env);
     let token_contract = env.register_stellar_asset_contract_v2(token_admin.clone());
     let token = token_contract.address();
     let token_client = token::Client::new(&env, &token);
-    
+
     let fee = 500i128;
     client.initialize(&admin, &token, &fee);
-    
+
     let creator = Address::generate(&env);
     // Mint tokens to creator
     let token_admin_client = token::StellarAssetClient::new(&env, &token);
     token_admin_client.mint(&creator, &10_000);
-    
+
     assert_eq!(token_client.balance(&creator), 10_000);
     assert_eq!(token_client.balance(&contract_id), 0);
-    
+
     let campaign_id = create_test_campaign_id(&env, 1);
     let title = String::from_str(&env, "Paid Campaign");
     let goal = 10_000i128;
     let deadline = env.ledger().timestamp() + 86400;
 
-    client.create_campaign(&campaign_id, &title, &creator, &goal, &deadline);
-    
+    client.create_campaign(&campaign_id, &title, &creator, &goal, &deadline, &token);
+
     // Fee deduction
     assert_eq!(token_client.balance(&creator), 10_000 - fee);
     assert_eq!(token_client.balance(&contract_id), fee);
@@ -1611,26 +1622,27 @@ fn test_create_campaign_with_fee() {
 fn test_create_campaign_insufficient_balance() {
     let env = Env::default();
     env.mock_all_auths();
-    
+
     let contract_id = env.register(CrowdfundingContract, ());
     let client = CrowdfundingContractClient::new(&env, &contract_id);
-    
+
     let admin = Address::generate(&env);
     let token_admin = Address::generate(&env);
     let token_contract = env.register_stellar_asset_contract_v2(token_admin.clone());
     let token = token_contract.address();
-    
+
     let fee = 500i128;
     client.initialize(&admin, &token, &fee);
-    
+
     let creator = Address::generate(&env);
     // 0 balance
-    
+
     let campaign_id = create_test_campaign_id(&env, 1);
     let title = String::from_str(&env, "Poor Campaign");
     let goal = 10_000i128;
     let deadline = env.ledger().timestamp() + 86400;
 
-    let result = client.try_create_campaign(&campaign_id, &title, &creator, &goal, &deadline);
+    let result =
+        client.try_create_campaign(&campaign_id, &title, &creator, &goal, &deadline, &token);
     assert_eq!(result, Err(Ok(CrowdfundingError::InsufficientBalance)));
 }
