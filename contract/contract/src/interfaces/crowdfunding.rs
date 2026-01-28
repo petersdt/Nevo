@@ -102,6 +102,8 @@ pub trait CrowdfundingTrait {
         is_private: bool,
     ) -> Result<(), CrowdfundingError>;
 
+    fn refund(env: Env, pool_id: u64, contributor: Address) -> Result<(), CrowdfundingError>;
+
     fn request_emergency_withdraw(
         env: Env,
         token: Address,

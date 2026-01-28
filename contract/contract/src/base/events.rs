@@ -93,3 +93,15 @@ pub fn creation_fee_paid(env: &Env, creator: Address, amount: i128) {
     let topics = (Symbol::new(env, "creation_fee_paid"), creator);
     env.events().publish(topics, amount);
 }
+
+pub fn refund(
+    env: &Env,
+    pool_id: u64,
+    contributor: Address,
+    asset: Address,
+    amount: i128,
+    timestamp: u64,
+) {
+    let topics = (Symbol::new(env, "refund"), pool_id, contributor);
+    env.events().publish(topics, (asset, amount, timestamp));
+}

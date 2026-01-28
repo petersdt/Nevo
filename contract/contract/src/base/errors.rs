@@ -43,4 +43,9 @@ pub enum CrowdfundingError {
     InvalidToken = 37,
     InvalidFee = 38,
     InsufficientBalance = 39,
+    RefundNotAvailable = 40,
+    PoolNotExpired = 41,
+    PoolAlreadyDisbursed = 42,
+    NoContributionToRefund = 43,
+    RefundGracePeriodNotPassed = 44,
 }
